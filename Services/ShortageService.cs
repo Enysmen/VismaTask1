@@ -37,11 +37,18 @@ namespace VismaTask1.Services
                 if (shortage.Priority > existing.Priority)
                 {
                     all.Remove(existing);
-                    all.Add(shortage with
+
+                    var updatedShortage = new Shortage
                     {
+                        Title = shortage.Title,
                         Name = currentUser,
+                        Room = shortage.Room,
+                        Category = shortage.Category,
+                        Priority = shortage.Priority,
                         CreatedOn = DateTime.UtcNow
-                    });
+                    };
+
+                    all.Add(updatedShortage);
                 }
                 else
                 {
@@ -50,11 +57,17 @@ namespace VismaTask1.Services
             }
             else
             {
-                all.Add(shortage with
+                var newShortage = new Shortage
                 {
+                    Title = shortage.Title,
                     Name = currentUser,
+                    Room = shortage.Room,
+                    Category = shortage.Category,
+                    Priority = shortage.Priority,
                     CreatedOn = DateTime.UtcNow
-                });
+                };
+
+                all.Add(newShortage);
             }
 
             _repository.SaveAll(all);
@@ -78,35 +91,36 @@ namespace VismaTask1.Services
             _repository.SaveAll(all);
         }
 
-        public IReadOnlyCollection<Shortage> Filter(
-            IEnumerable<Shortage> shortages,
-            string? title = null,
-            DateTime? from = null,
-            DateTime? to = null,
-            Category? category = null,
-            Room? room = null)
+        public IReadOnlyCollection<Shortage> Filter(IEnumerable<Shortage> shortages,string? title = null,DateTime? from = null,DateTime? to = null,Category? category = null,Room? room = null)
         {
             var query = shortages.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(title))
+            {
                 query = query.Where(s => s.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
+            }
 
             if (from.HasValue)
+            {
                 query = query.Where(s => s.CreatedOn >= from.Value);
+            }
 
             if (to.HasValue)
+            {
                 query = query.Where(s => s.CreatedOn <= to.Value);
+            }
 
             if (category.HasValue)
+            {
                 query = query.Where(s => s.Category == category.Value);
+            }
 
             if (room.HasValue)
+            {
                 query = query.Where(s => s.Room == room.Value);
+            }
 
-            return query
-                .OrderByDescending(s => s.Priority)
-                .ThenByDescending(s => s.CreatedOn)
-                .ToList();
+            return query.OrderByDescending(s => s.Priority).ThenByDescending(s => s.CreatedOn).ToList();
         }
     }
 }
