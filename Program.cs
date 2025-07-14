@@ -1,189 +1,123 @@
-﻿using System.Globalization;
-
+﻿using System;
+using System.Globalization;
+using System.CommandLine; 
+using System.CommandLine.Invocation;
 using VismaTask1.Models;
 using VismaTask1.Repositories;
 using VismaTask1.Services;
+
 
 namespace VismaTask1
 {
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-            // 1. Ввод имени и определение роли
+            // Ввод имени и определение роли
             Console.Write("Введите ваше имя: ");
             var username = Console.ReadLine()?.Trim();
             if (string.IsNullOrWhiteSpace(username))
             {
                 Console.WriteLine("Имя пользователя не может быть пустым.");
-                return;
+                return 1;
             }
             bool isAdmin = username.Equals("admin", StringComparison.OrdinalIgnoreCase);
 
-            // 2. Инициализация репозитория и сервиса
-            var repository = new JsonShortageRepository("shortages.json");
-            var service = new ShortageService(repository);
+            // Репозиторий и сервис
+            var repo = new JsonShortageRepository("shortages.json");
+            var service = new ShortageService(repo);
 
-            // 3. Разбор аргументов
-            if (args.Length == 0)
+            // Настройка корневой команды
+            var root = new RootCommand("Visma Resource Shortage CLI");
+
+            // --- register
+            var cmdReg = new Command("register", "Зарегистрировать новую заявку")
             {
-                PrintUsage();
-                return;
-            }
-
-            var command = args[0].ToLowerInvariant();
-            var options = args.Skip(1).ToArray();
-
-            try
-            {
-                switch (command)
-                {
-                    case "register":
-                        HandleRegister(options, service, username);
-                        break;
-
-                    case "list":
-                        HandleList(options, service, username, isAdmin);
-                        break;
-
-                    case "delete":
-                        HandleDelete(options, service, username, isAdmin);
-                        break;
-
-                    case "help":
-                    default:
-                        PrintUsage();
-                        break;
-                }
-            }
-            catch (InvalidOperationException ex)
-            {
-                Console.WriteLine($"Ошибка: {ex.Message}");
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                Console.WriteLine($"Доступ запрещён: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Непредвиденная ошибка: {ex.Message}");
-            }
-        }
-
-        static void HandleRegister(string[] opts, ShortageService service, string user)
-        {
-            // Ожидаем: --title <текст> --room <room> --category <cat> --priority <1-10>
-            var p = new OptionParser(opts);
-
-            var title = p.GetValue("--title")
-                ?? throw new InvalidOperationException("Не задан параметр --title.");
-            var room = Enum.Parse<Room>(
-                p.GetValue("--room") ?? throw new InvalidOperationException("Не задан параметр --room."),
-                true);
-            var category = Enum.Parse<Category>(
-                p.GetValue("--category") ?? throw new InvalidOperationException("Не задан параметр --category."),
-                true);
-            var priority = int.Parse(p.GetValue("--priority")
-                ?? throw new InvalidOperationException("Не задан параметр --priority."));
-
-            var shortage = new Shortage
-            {
-                Title = title,
-                Name = user,
-                Room = room,
-                Category = category,
-                Priority = priority,
-                CreatedOn = DateTime.UtcNow
+                new Option<string>("--title",    description: "Заголовок заявки")    { IsRequired = true },
+                new Option<Room>("--room",       description: "Комната")              { IsRequired = true },
+                new Option<Category>("--category",description: "Категория")           { IsRequired = true },
+                new Option<int>("--priority",    description: "Приоритет (1-10)")     { IsRequired = true }
             };
-
-            service.Register(shortage, user);
-            Console.WriteLine("Заявка успешно зарегистрирована.");
-        }
-
-        static void HandleList(string[] opts, ShortageService service, string user, bool isAdmin)
-        {
-            // Параметры фильтра: --title, --from, --to, --category, --room
-            var p = new OptionParser(opts);
-            DateTime? from = p.TryGetDate("--from");
-            DateTime? to = p.TryGetDate("--to");
-            string? title = p.GetValue("--title");
-            var cat = p.TryGetEnum<Category>("--category");
-            var room = p.TryGetEnum<Room>("--room");
-
-            var all = service.GetAll(user, isAdmin);
-            var filtered = service.Filter(all, title, from, to, cat, room);
-
-            if (!filtered.Any())
+            cmdReg.Handler = CommandHandler.Create<string, Room, Category, int>((title, room, category, priority) =>
             {
-                Console.WriteLine("Ничего не найдено.");
-                return;
-            }
+                var s = new Shortage
+                {
+                    Title = title,
+                    Name = username,
+                    Room = room,
+                    Category = category,
+                    Priority = priority,
+                    CreatedOn = DateTime.UtcNow
+                };
+                service.Register(s, username);
+                Console.WriteLine("OK: заявка зарегистрирована");
+            });
+            root.AddCommand(cmdReg);
 
-            foreach (var s in filtered)
+            // --- list
+            var cmdList = new Command("list", "Показать заявки")
             {
-                Console.WriteLine(
-                    $"{s.Title} | {s.Room} | {s.Category} | Приоритет: {s.Priority} | " +
-                    $"Создал: {s.Name} | Дата: {s.CreatedOn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}");
-            }
-        }
+                new Option<string?>("--title",   "Фильтр по заголовку"),
+                new Option<DateTime?>("--from",  "Дата от (yyyy-MM-dd)", parseArgument: result =>
+                    DateTime.TryParseExact(result.Tokens[0].Value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                        DateTimeStyles.None, out var d) ? d : throw new ArgumentException("Неверный формат --from")),
+                new Option<DateTime?>("--to",    "Дата до (yyyy-MM-dd)", parseArgument: result =>
+                    DateTime.TryParseExact(result.Tokens[0].Value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                        DateTimeStyles.None, out var d) ? d : throw new ArgumentException("Неверный формат --to")),
+                new Option<Category?>("--category","Фильтр по категории"),
+                new Option<Room?>("--room",      "Фильтр по комнате")
+            };
+            cmdList.Handler = CommandHandler.Create<string?, DateTime?, DateTime?, Category?, Room?>(
+                (title, from, to, category, room) =>
+                {
+                    var all = service.GetAll(username, isAdmin);
+                    var list = service.Filter(all, title, from, to, category, room);
+                    if (!list.Any())
+                    {
+                        Console.WriteLine("Ничего не найдено.");
+                        return;
+                    }
+                    foreach (var x in list)
+                    {
+                        Console.WriteLine($"{x.Title} | {x.Room} | {x.Category} | Pri:{x.Priority} | By:{x.Name} | {x.CreatedOn:yyyy-MM-dd}");
+                    }
+                });
+            root.AddCommand(cmdList);
 
-        static void HandleDelete(string[] opts, ShortageService service, string user, bool isAdmin)
-        {
-            // Ожидаем: --title <текст> --room <room>
-            var p = new OptionParser(opts);
-            var title = p.GetValue("--title")
-                ?? throw new InvalidOperationException("Не задан параметр --title.");
-            var room = Enum.Parse<Room>(
-                p.GetValue("--room") ?? throw new InvalidOperationException("Не задан параметр --room."),
-                true);
-
-            service.Delete(title, room, user, isAdmin);
-            Console.WriteLine("Заявка удалена.");
-        }
-
-        static void PrintUsage()
-        {
-            Console.WriteLine("Использование:");
-            Console.WriteLine("  register --title <text> --room <room> --category <cat> --priority <1-10>");
-            Console.WriteLine("  list [--title <text>] [--from <yyyy-MM-dd>] [--to <yyyy-MM-dd>]");
-            Console.WriteLine("       [--category <cat>] [--room <room>]");
-            Console.WriteLine("  delete --title <text> --room <room>");
-            Console.WriteLine("  help");
-            Console.WriteLine();
-            Console.WriteLine("Room: MeetingRoom, Kitchen, Bathroom");
-            Console.WriteLine("Category: Electronics, Food, Other");
-        }
-    }
-
-    // Простая утилита для разбора пар --option value
-    class OptionParser
-    {
-        private readonly string[] _args;
-        public OptionParser(string[] args) => _args = args;
-
-        public string? GetValue(string name)
-        {
-            for (int i = 0; i < _args.Length; i += 2)
+            // --- delete
+            var cmdDel = new Command("delete", "Удалить заявку")
             {
-                if (_args[i].Equals(name, StringComparison.OrdinalIgnoreCase)
-                    && i + 1 < _args.Length)
-                    return _args[i + 1];
+                new Option<string>("--title", "Заголовок заявки") { IsRequired = true },
+                new Option<Room>("--room",     "Комната")          { IsRequired = true }
+            };
+            cmdDel.Handler = CommandHandler.Create<string, Room>((title, room) =>
+            {
+                service.Delete(title, room, username, isAdmin);
+                Console.WriteLine("OK: заявка удалена");
+            });
+            root.AddCommand(cmdDel);
+
+            // --- exit
+            var cmdExit = new Command("exit", "Выход из приложения");
+            cmdExit.Handler = CommandHandler.Create(() => Environment.Exit(0));
+            root.AddCommand(cmdExit);
+
+            // Если есть аргументы — выполнить один раз и выйти
+            if (args.Length > 0)
+                return root.InvokeAsync(args).Result;
+
+            // Иначе — интерактивный REPL
+            Console.WriteLine("Visma CLI: введите help для списка команд, exit — для выхода.");
+            while (true)
+            {
+                Console.Write("> ");
+                var line = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                _ = root.Invoke(parts);
             }
-            return null;
-        }
-
-        public DateTime? TryGetDate(string name)
-        {
-            var v = GetValue(name);
-            return DateTime.TryParseExact(v ?? "",
-                "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var d) ? d : null;
-        }
-
-        public T? TryGetEnum<T>(string name) where T : struct, Enum
-        {
-            var v = GetValue(name);
-            return Enum.TryParse<T>(v, true, out var e) ? e : (T?)null;
         }
     }
 }
