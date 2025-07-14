@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using VismaTask.Models;
+using VismaTask1.Models;
 
-namespace VismaTask.Repositories
+namespace VismaTask1.Repositories
 {
     // Interface for the data storage layer
     public interface IShortageRepository

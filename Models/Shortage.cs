@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace VismaTask.Models
+namespace VismaTask1.Models
 {
     public class Shortage
     {
