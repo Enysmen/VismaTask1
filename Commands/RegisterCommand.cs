@@ -8,15 +8,17 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
 
+using Serilog.Core;
+
 using VismaTask1.Models;
 using VismaTask1.Services;
 
 namespace VismaTask1.Commands
 {
-    public class RegisterCommand : Command
+    public class RegisterCommand : BaseCommand
     {
         public RegisterCommand(IShortageService service, ILogger<RegisterCommand> logger, string username, bool isAdmin)
-            : base("register", "Register a new application")
+            : base("register", "Register a new application", service, logger, username, isAdmin)
         {
             var titleOpt = new Option<string>("--title") { Description = "Application title", IsRequired = true };
             var roomOpt = new Option<Room>("--room") { Description = "Room", IsRequired = true };
@@ -28,33 +30,35 @@ namespace VismaTask1.Commands
             AddOption(categoryOpt);
             AddOption(priorityOpt);
 
-            this.Handler = CommandHandler.Create<string, Room, Category, int>((title, room, category, priority) =>
+            this.Handler = CommandHandler.Create<string, Room, Category, int>(Execute);
+        }
+
+        private void Execute(string title, Room room, Category category, int priority)
+        {
+            try
             {
-                try
+                var s = new Shortage
                 {
-                    var s = new Shortage
-                    {
-                        Title = title,
-                        Name = username,
-                        Room = room,
-                        Category = category,
-                        Priority = priority,
-                        CreatedOn = DateTime.UtcNow
-                    };
-                    service.Register(s, username);
-                    Console.WriteLine("OK: application registered");
-                }
-                catch (InvalidOperationException ex)
-                {
-                    Console.WriteLine($"Attention: {ex.Message}");
-                    logger.LogWarning(ex, "Duplicate or low-priority application.");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Unexpected error occurred during registration.");
-                    logger.LogError(ex, "Unhandled error in RegisterCommand.");
-                }
-            });
+                    Title = title,
+                    Name = Username,
+                    Room = room,
+                    Category = category,
+                    Priority = priority,
+                    CreatedOn = DateTime.UtcNow
+                };
+                Service.Register(s, Username);
+                Console.WriteLine("OK: application registered");
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"Attention: {ex.Message}");
+                Logger.LogWarning(ex, "Duplicate or low-priority application.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Unexpected error occurred during registration.");
+                Logger.LogError(ex, "Unhandled error in RegisterCommand.");
+            }
         }
 
         private static Option<int> CreatePriorityOption()
