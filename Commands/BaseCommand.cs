@@ -18,14 +18,8 @@ namespace VismaTask1.Commands
         protected readonly string Username;
         protected readonly bool IsAdmin;
 
-        protected BaseCommand(
-            string name,
-            string description,
-            IShortageService service,
-            ILogger logger,
-            string username,
-            bool isAdmin)
-            : base(name, description)
+        protected BaseCommand(string name, string description,IShortageService service, ILogger logger,string username,bool isAdmin)
+        :base(name, description)
         {
             Service = service;
             Logger = logger;

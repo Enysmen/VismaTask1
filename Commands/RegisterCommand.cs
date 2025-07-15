@@ -20,9 +20,18 @@ namespace VismaTask1.Commands
         public RegisterCommand(IShortageService service, ILogger<RegisterCommand> logger, string username, bool isAdmin)
             : base("register", "Register a new application", service, logger, username, isAdmin)
         {
-            var titleOpt = new Option<string>("--title") { Description = "Application title", IsRequired = true };
-            var roomOpt = new Option<Room>("--room") { Description = "Room", IsRequired = true };
-            var categoryOpt = new Option<Category>("--category") { Description = "Category", IsRequired = true };
+            var titleOpt = new Option<string>("--title") 
+            { 
+                Description = "Application title", IsRequired = true 
+            };
+            var roomOpt = new Option<Room>("--room") 
+            { 
+                Description = "Room", IsRequired = true 
+            };
+            var categoryOpt = new Option<Category>("--category") 
+            { 
+                Description = "Category", IsRequired = true 
+            };
             var priorityOpt = CreatePriorityOption();
 
             AddOption(titleOpt);
