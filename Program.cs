@@ -30,8 +30,12 @@ namespace VismaTask1
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    services.AddSingleton<IShortageRepository>(sp => new JsonShortageRepository("shortages.json"));
                     services.AddSingleton<IShortageService, ShortageService>();
+                    services.AddSingleton<IShortageRepository>(sp =>
+                    {
+                        var logger = sp.GetRequiredService<ILogger<JsonShortageRepository>>();
+                        return new JsonShortageRepository("shortages.json", logger);
+                    });
                 })
                 .Build();
 

@@ -5,6 +5,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Serilog;
 
 using VismaTask1.Models;
@@ -16,10 +18,12 @@ namespace VismaTask1.Repositories
     public class JsonShortageRepository : IShortageRepository
     {
         private readonly string _filePath;
+        private readonly ILogger<JsonShortageRepository> _logger;
 
-        public JsonShortageRepository(string filePath)
+        public JsonShortageRepository(string filePath, ILogger<JsonShortageRepository> logger)
         {
             _filePath = filePath;
+            _logger = logger;
         }
 
         public List<Shortage> LoadAll()
@@ -28,6 +32,7 @@ namespace VismaTask1.Repositories
             {
                 if (!File.Exists(_filePath))
                 {
+                    _logger.LogWarning("File {FilePath} not found. Empty list returned.", _filePath);
                     return new List<Shortage>();
                 }
 
@@ -37,7 +42,7 @@ namespace VismaTask1.Repositories
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error loading data from file: {FilePath}", _filePath);
+                _logger.LogError(ex, "Error loading data from file {FilePath}", _filePath);
                 Console.WriteLine("Error loading data. Check the log file.");
                 return new List<Shortage>();
             }
@@ -53,7 +58,7 @@ namespace VismaTask1.Repositories
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error saving data to file: {FilePath}", _filePath);
+                _logger.LogError(ex, "Error saving data to file {FilePath}", _filePath);
                 Console.WriteLine("Error saving data. Check the log file.");
             }
         }
