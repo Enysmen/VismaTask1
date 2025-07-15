@@ -96,12 +96,12 @@ namespace VismaTask1
                 catch (InvalidOperationException ex)
                 {
                     Console.WriteLine($"Attention: {ex.Message}");
-                    Log.Error(ex, "When trying to register an application Title={Title}, Room={Room}", title, room);
+                    logger.LogWarning(ex, "Validation failed when registering: Title={Title}, Room={Room}", title, room);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine("An unexpected error occurred while registering.");
-                    Log.Error(ex, "Unexpected error in register Cmd.Handler");
+                    logger.LogError(ex, "Unexpected error during registration");
                 }
             });
             root.AddCommand(registerCmd);
@@ -182,23 +182,30 @@ namespace VismaTask1
                     Description = "Filter by room"
                 }
             };
-            listCmd.Handler = CommandHandler.Create<string?, DateTime?, DateTime?, Category?, Room?>(
-                (title, from, to, category, room) =>
+            listCmd.Handler = CommandHandler.Create<string?, DateTime?, DateTime?, Category?, Room?>((title, from, to, category, room) =>
+            {
+                try
                 {
                     var all = service.GetAll(username, isAdmin);
-                    var list = service.Filter(all, title, from, to, category, room);
-                    if (!list.Any())
+                    var filtered = service.Filter(all, title, from, to, category, room);
+
+                    if (!filtered.Any())
                     {
                         Console.WriteLine("Nothing found.");
                         return;
                     }
-                    foreach (var x in list)
+
+                    foreach (var x in filtered)
                     {
-                        Console.WriteLine(
-                            $"{x.Title} | {x.Room} | {x.Category} | Pri:{x.Priority} | " +
-                            $"By:{x.Name} | {x.CreatedOn:yyyy-MM-dd}");
+                        Console.WriteLine($"{x.Title} | {x.Room} | {x.Category} | Pri:{x.Priority} | By:{x.Name} | {x.CreatedOn:yyyy-MM-dd}");
                     }
-                });
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Unexpected error in list command");
+                    Console.WriteLine("An error occurred while listing data.");
+                }
+            });
             root.AddCommand(listCmd);
             #endregion
 
@@ -218,19 +225,38 @@ namespace VismaTask1
             };
             deleteCmd.Handler = CommandHandler.Create<string, Room>((title, room) =>
             {
-                service.Delete(title, room, username, isAdmin);
-                Console.WriteLine("OK: request deleted");
+                try
+                {
+                    service.Delete(title, room, username, isAdmin);
+                    Console.WriteLine("OK: request deleted");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    logger.LogWarning(ex, "Delete failed for Title={Title}, Room={Room}", title, room);
+                    Console.WriteLine($"Attention: {ex.Message}");
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    logger.LogWarning(ex, "Unauthorized delete attempt by {User}", username);
+                    Console.WriteLine("Access denied: You are not allowed to delete this request.");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Unexpected error in delete command");
+                    Console.WriteLine("An unexpected error occurred while deleting.");
+                }
             });
             root.AddCommand(deleteCmd);
             #endregion
 
 
-            // --- exit
+            #region exit Command
             var exitCmd = new Command("exit", "Exit the application");
             exitCmd.Handler = CommandHandler.Create(() => Environment.Exit(0));
             root.AddCommand(exitCmd);
+            #endregion
 
-            // If there are arguments, execute once and exit
+            // CLI entry point
             if (args.Length > 0)
             {
                 return root.InvokeAsync(args).Result;
