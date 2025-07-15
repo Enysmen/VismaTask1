@@ -4,9 +4,7 @@ using System.CommandLine;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
-
 using VismaTask1.Services;
 
 namespace VismaTask1.Commands

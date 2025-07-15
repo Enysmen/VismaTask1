@@ -4,11 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
-
 using Serilog;
-
 using VismaTask1.Models;
 using VismaTask1.Repositories;
 

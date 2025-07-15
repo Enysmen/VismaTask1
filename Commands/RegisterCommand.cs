@@ -5,11 +5,8 @@ using System.CommandLine.NamingConventionBinder;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
-
 using Serilog.Core;
-
 using VismaTask1.Models;
 using VismaTask1.Services;
 
