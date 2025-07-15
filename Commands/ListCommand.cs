@@ -36,10 +36,35 @@ namespace VismaTask1.Commands
             { 
                 Description = "Filter by category" 
             };
+            categoryOpt.AddValidator(result =>
+            {
+
+                if (result.Tokens.Count == 0)
+                {
+                    return;
+                }
+                var raw = result.Tokens.Single().Value;
+                if (!Enum.TryParse<Category>(raw, true, out _))
+                {
+                    result.ErrorMessage = $"Invalid category “{raw}”. Valid: Electronics, Food, Other.";
+                }
+            });
             var roomOpt = new Option<Room?>("--room") 
             { 
                 Description = "Filter by room" 
             };
+            roomOpt.AddValidator(result =>
+            {
+                if (result.Tokens.Count == 0)
+                {
+                    return;
+                }
+                var raw = result.Tokens.Single().Value;
+                if (!Enum.TryParse<Room>(raw, true, out _))
+                {
+                    result.ErrorMessage = $"Invalid room “{raw}”. Valid: MeetingRoom, Kitchen, Bathroom.";
+                }
+            });
 
             AddOption(titleOpt);
             AddOption(fromOpt);
