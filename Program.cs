@@ -39,7 +39,6 @@ namespace VismaTask1
                 })
                 .Build();
 
-
             Console.Write("Enter your name: ");
             var username = Console.ReadLine()?.Trim();
 
@@ -50,191 +49,32 @@ namespace VismaTask1
             }
             bool isAdmin = username.Equals("admin", StringComparison.OrdinalIgnoreCase);
 
+            var root = new RootCommand("Visma Resource Shortage CLI");
             var service = host.Services.GetRequiredService<IShortageService>();
 
-            // Setting up the root command
-            var root = new RootCommand("Visma Resource Shortage CLI");
-            var logger = host.Services.GetRequiredService<ILogger<Program>>();
             #region register Command
+            root.AddCommand(new RegisterCommand(
+                service,
+                host.Services.GetRequiredService<ILogger<RegisterCommand>>(),
+                username,
+                isAdmin));
+            #endregion 
 
-            var registerCmd = new RegisterCommand(
-                    host.Services.GetRequiredService<IShortageService>(),
-                    host.Services.GetRequiredService<ILogger<RegisterCommand>>(),
-                    username,
-                    isAdmin);
-
-            registerCmd.Handler = CommandHandler.Create<string, Room, Category, int>((title, room, category, priority) =>
-            {
-                try
-                {
-                    var s = new Shortage
-                    {
-                        Title = title,
-                        Name = username,
-                        Room = room,
-                        Category = category,
-                        Priority = priority,
-                        CreatedOn = DateTime.UtcNow
-                    };
-                    service.Register(s, username);
-                    Console.WriteLine("OK: application registered");
-                }
-                catch (InvalidOperationException ex)
-                {
-                    Console.WriteLine($"Attention: {ex.Message}");
-                    logger.LogWarning(ex, "Validation failed when registering: Title={Title}, Room={Room}", title, room);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("An unexpected error occurred while registering.");
-                    logger.LogError(ex, "Unexpected error during registration");
-                }
-            });
-            root.AddCommand(registerCmd);
-            #endregion
-
-            #region ---list Command
-            // Options --from and --to moved to correct positional parseArgument
-            var fromOpt = new Option<DateTime?>(
-                aliases: new[] { "--from" },
-                parseArgument: result =>
-                {
-                    var token = result.Tokens.SingleOrDefault()?.Value;
-                    try
-                    {
-                        if (DateTime.TryParseExact(token ?? string.Empty, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
-                        {
-                            return d;
-                        }
-                        else
-                        {
-                            throw new ArgumentException($"Incorrect date format: «{token}». Expected yyyy-MM-dd.");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Error parsing parameter --from: {RawValue}", token);
-                        Console.WriteLine("Error: Date format for --from parameter must be yyyy-MM-dd.");
-                        return null;
-                    }
-                })
-            {
-                Description = "Date from (yyyy-MM-dd)"
-            };
-
-
-
-            var toOpt = new Option<DateTime?>(
-                aliases: new[] { "--to" },
-                parseArgument: result =>
-                {
-                    var token = result.Tokens.SingleOrDefault()?.Value;
-                    try
-                    {
-                        if (DateTime.TryParseExact(token ?? string.Empty, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
-                        {
-                            return d;
-                        }
-                        else
-                        {
-                            throw new ArgumentException($"Incorrect date format: «{token}». Expected yyyy-MM-dd.");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Error parsing parameter --to: {RawValue}", token);
-                        Console.WriteLine("Error: Date format for --to option must be yyyy-MM-dd.");
-                        return null;
-                    }
-                })
-            {
-                Description = "Date to (yyyy-MM-dd)"
-            };
-
-            var listCmd = new Command("list", "Show applications")
-            {
-                new Option<string?>("--title")
-                {
-                    Description = "Filter by title"
-                },
-                fromOpt,
-                toOpt,
-                new Option<Category?>("--category")
-                {
-                    Description = "Filter by category"
-                },
-                new Option<Room?>("--room")
-                {
-                    Description = "Filter by room"
-                }
-            };
-            listCmd.Handler = CommandHandler.Create<string?, DateTime?, DateTime?, Category?, Room?>((title, from, to, category, room) =>
-            {
-                try
-                {
-                    var all = service.GetAll(username, isAdmin);
-                    var filtered = service.Filter(all, title, from, to, category, room);
-
-                    if (!filtered.Any())
-                    {
-                        Console.WriteLine("Nothing found.");
-                        return;
-                    }
-
-                    foreach (var x in filtered)
-                    {
-                        Console.WriteLine($"{x.Title} | {x.Room} | {x.Category} | Pri:{x.Priority} | By:{x.Name} | {x.CreatedOn:yyyy-MM-dd}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Unexpected error in list command");
-                    Console.WriteLine("An error occurred while listing data.");
-                }
-            });
-            root.AddCommand(listCmd);
+            #region list Command
+            root.AddCommand(new ListCommand(
+                service,
+                host.Services.GetRequiredService<ILogger<ListCommand>>(),
+                username,
+                isAdmin));
             #endregion
 
             #region delete Command
-            var deleteCmd = new Command("delete", "Delete request")
-            {
-                new Option<string>("--title")
-                {
-                    Description = "Application title",
-                    IsRequired  = true
-                },
-                new Option<Room>("--room")
-                {
-                    Description = "Room",
-                    IsRequired  = true
-                }
-            };
-            deleteCmd.Handler = CommandHandler.Create<string, Room>((title, room) =>
-            {
-                try
-                {
-                    service.Delete(title, room, username, isAdmin);
-                    Console.WriteLine("OK: request deleted");
-                }
-                catch (InvalidOperationException ex)
-                {
-                    logger.LogWarning(ex, "Delete failed for Title={Title}, Room={Room}", title, room);
-                    Console.WriteLine($"Attention: {ex.Message}");
-                }
-                catch (UnauthorizedAccessException ex)
-                {
-                    logger.LogWarning(ex, "Unauthorized delete attempt by {User}", username);
-                    Console.WriteLine("Access denied: You are not allowed to delete this request.");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Unexpected error in delete command");
-                    Console.WriteLine("An unexpected error occurred while deleting.");
-                }
-            });
-            root.AddCommand(deleteCmd);
+            root.AddCommand(new DeleteCommand(
+                service,
+                host.Services.GetRequiredService<ILogger<DeleteCommand>>(),
+                username,
+                isAdmin));
             #endregion
-
 
             #region exit Command
             var exitCmd = new Command("exit", "Exit the application");
