@@ -18,27 +18,12 @@ namespace VismaTask1.Commands
     public class RegisterCommand : BaseCommand
     {
         public RegisterCommand(IShortageService service, ILogger<RegisterCommand> logger, string username, bool isAdmin)
-            : base("register", "Register a new application", service, logger, username, isAdmin)
+        : base("register", "Register a new application", service, logger, username, isAdmin)
         {
-            var titleOpt = new Option<string>("--title") 
-            { 
-                Description = "Application title", IsRequired = true 
-            };
-            var roomOpt = new Option<Room>("--room") 
-            { 
-                Description = "Room", IsRequired = true 
-            };
-            var categoryOpt = new Option<Category>("--category") 
-            { 
-                Description = "Category", IsRequired = true 
-            };
-            var priorityOpt = CreatePriorityOption();
-
-            AddOption(titleOpt);
-            AddOption(roomOpt);
-            AddOption(categoryOpt);
-            AddOption(priorityOpt);
-
+            foreach (var opt in CommandOptionsFactory.CreateRegisterOptions())
+            {
+                AddOption(opt);
+            }
             this.Handler = CommandHandler.Create<string, Room, Category, int>(Execute);
         }
 
@@ -69,27 +54,6 @@ namespace VismaTask1.Commands
                 Logger.LogError(ex, "Unhandled error in RegisterCommand.");
             }
         }
-
-        private static Option<int> CreatePriorityOption()
-        {
-            var priorityOption = new Option<int>("--priority")
-            {
-                Description = "Priority (1–10)",
-                IsRequired = true
-            };
-
-            priorityOption.AddValidator(result =>
-            {
-                var value = result.GetValueOrDefault<int>();
-                if (value < 1 || value > 10)
-                {
-                    result.ErrorMessage = "The priority must be in the range from 1 to 10.";
-                }
-            });
-
-            return priorityOption;
-        }
-
-        
+ 
     }
 }

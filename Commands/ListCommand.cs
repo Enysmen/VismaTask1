@@ -20,58 +20,11 @@ namespace VismaTask1.Commands
         public ListCommand(IShortageService service,ILogger<ListCommand> logger,string username,bool isAdmin)
         :base("list", "Show applications", service, logger, username, isAdmin)
         {
-            var titleOpt = new Option<string?>("--title") 
-            { 
-                Description = "Filter by title" 
-            };
-            var fromOpt = new Option<DateTime?>("--from", parseArgument: ParseDate) 
-            { 
-                Description = "Date from (yyyy-MM-dd)" 
-            };
-            var toOpt = new Option<DateTime?>("--to", parseArgument: ParseDate) 
-            { 
-                Description = "Date to (yyyy-MM-dd)" 
-            };
-            var categoryOpt = new Option<Category?>("--category") 
-            { 
-                Description = "Filter by category" 
-            };
-            categoryOpt.AddValidator(result =>
+            foreach (var opt in CommandOptionsFactory.CreateListOptions())
             {
-
-                if (result.Tokens.Count == 0)
-                {
-                    return;
-                }
-                var raw = result.Tokens.Single().Value;
-                if (!Enum.TryParse<Category>(raw, true, out _))
-                {
-                    result.ErrorMessage = $"Invalid category “{raw}”. Valid: Electronics, Food, Other.";
-                }
-            });
-            var roomOpt = new Option<Room?>("--room") 
-            { 
-                Description = "Filter by room" 
-            };
-            roomOpt.AddValidator(result =>
-            {
-                if (result.Tokens.Count == 0)
-                {
-                    return;
-                }
-                var raw = result.Tokens.Single().Value;
-                if (!Enum.TryParse<Room>(raw, true, out _))
-                {
-                    result.ErrorMessage = $"Invalid room “{raw}”. Valid: MeetingRoom, Kitchen, Bathroom.";
-                }
-            });
-
-            AddOption(titleOpt);
-            AddOption(fromOpt);
-            AddOption(toOpt);
-            AddOption(categoryOpt);
-            AddOption(roomOpt);
-
+                AddOption(opt);
+            }
+              
             this.Handler = CommandHandler.Create<string?, DateTime?, DateTime?, Category?, Room?>(Execute);
         }
 
@@ -98,18 +51,6 @@ namespace VismaTask1.Commands
                 Logger.LogError(ex, "Unexpected error in list");
                 Console.WriteLine("An error occurred while listing applications.");
             }
-        }
-
-        private static DateTime? ParseDate(ArgumentResult result)
-        {
-            var token = result.Tokens.SingleOrDefault()?.Value;
-            if (DateTime.TryParseExact(token, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
-            {
-                return d;
-            }
-           
-            result.ErrorMessage = $"Invalid date format '{token}', expected yyyy-MM-dd";
-            return null;
-        }
+        } 
     }
 }

@@ -18,18 +18,11 @@ namespace VismaTask1.Commands
         public DeleteCommand(IShortageService service,ILogger<DeleteCommand> logger,string username,bool isAdmin)
         :base("delete", "Delete a request", service, logger, username, isAdmin)
         {
-            var titleOpt = new Option<string>("--title") 
-            { 
-                Description = "Application title", IsRequired = true 
-            };
-            var roomOpt = new Option<Room>("--room") 
-            { 
-                Description = "Room", IsRequired = true 
-            };
-
-            AddOption(titleOpt);
-            AddOption(roomOpt);
-
+            foreach (var opt in CommandOptionsFactory.CreateDeleteOptions())
+            {
+                AddOption(opt);
+            }
+               
             this.Handler = CommandHandler.Create<string, Room>(Execute);
         }
 
