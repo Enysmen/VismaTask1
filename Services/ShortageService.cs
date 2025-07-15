@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Serilog;
 
 using VismaTask1.Models;
@@ -14,16 +16,26 @@ namespace VismaTask1.Services
     public class ShortageService : IShortageService
     {
         private readonly IShortageRepository _repository;
+        private readonly ILogger<ShortageService> _logger;
 
-        public ShortageService(IShortageRepository repository)
+        public ShortageService(IShortageRepository repository,ILogger<ShortageService> logger)
         {
             _repository = repository;
+            _logger = logger;
         }
 
         public IReadOnlyCollection<Shortage> GetAll(string currentUser, bool isAdmin)
         {
-            var all = _repository.LoadAll();
-            return isAdmin ? all : all.Where(s => s.Name == currentUser).ToList();
+            try
+            {
+                var all = _repository.LoadAll();
+                return isAdmin ? all : all.Where(s => s.Name == currentUser).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting list of applications for user {User}", currentUser);
+                return Array.Empty<Shortage>();
+            }
         }
 
         public void Register(Shortage shortage, string currentUser)
@@ -47,6 +59,7 @@ namespace VismaTask1.Services
                             Priority = shortage.Priority,
                             CreatedOn = DateTime.UtcNow
                         });
+                        _logger.LogInformation("Updated application {Title} by user {User}", shortage.Title, currentUser);
                     }
                     else
                     {
@@ -64,13 +77,14 @@ namespace VismaTask1.Services
                         Priority = shortage.Priority,
                         CreatedOn = DateTime.UtcNow
                     });
+                    _logger.LogInformation("New request {Title} created by {User}", shortage.Title, currentUser);
                 }
 
                 _repository.SaveAll(all);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error registering application {Title} by user {User}", shortage.Title, currentUser);
+                _logger.LogError(ex, "Error registering application {Title} by user {User}", shortage.Title, currentUser);
                 throw; // We pass it up so that the top level displays the error to the user.
             }
         }
@@ -95,10 +109,11 @@ namespace VismaTask1.Services
                     
                 all.Remove(item);
                 _repository.SaveAll(all);
+                _logger.LogInformation("Application {Title} has been deleted by user {User}", title, currentUser);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error deleting application {Title} by user {User}", title, currentUser);
+                _logger.LogError(ex, "Error deleting application {Title} by user {User}", title, currentUser);
                 throw;
             }
         }
@@ -107,32 +122,40 @@ namespace VismaTask1.Services
         {
             var query = shortages.AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(title))
+            try
             {
-                query = query.Where(s => s.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
-            }
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    query = query.Where(s => s.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
+                }
 
-            if (from.HasValue)
+                if (from.HasValue)
+                {
+                    query = query.Where(s => s.CreatedOn >= from.Value);
+                }
+
+                if (to.HasValue)
+                {
+                    query = query.Where(s => s.CreatedOn <= to.Value);
+                }
+
+                if (category.HasValue)
+                {
+                    query = query.Where(s => s.Category == category.Value);
+                }
+
+                if (room.HasValue)
+                {
+                    query = query.Where(s => s.Room == room.Value);
+                }
+
+                return query.OrderByDescending(s => s.Priority).ThenByDescending(s => s.CreatedOn).ToList();
+            }
+            catch(Exception ex)
             {
-                query = query.Where(s => s.CreatedOn >= from.Value);
+                _logger.LogError(ex, "Error filtering applications");
+                return Array.Empty<Shortage>();
             }
-
-            if (to.HasValue)
-            {
-                query = query.Where(s => s.CreatedOn <= to.Value);
-            }
-
-            if (category.HasValue)
-            {
-                query = query.Where(s => s.Category == category.Value);
-            }
-
-            if (room.HasValue)
-            {
-                query = query.Where(s => s.Room == room.Value);
-            }
-
-            return query.OrderByDescending(s => s.Priority).ThenByDescending(s => s.CreatedOn).ToList();
         }
     }
 }

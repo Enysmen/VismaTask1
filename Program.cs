@@ -4,7 +4,8 @@ using System.CommandLine.Invocation;
 using System.CommandLine.NamingConventionBinder;
 using System.CommandLine.Parsing;
 using System.Globalization;
-
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualBasic;
 
@@ -21,6 +22,20 @@ namespace VismaTask1
     {
         static int Main(string[] args)
         {
+
+            var host = Host.CreateDefaultBuilder()
+                .UseSerilog((context, services, configuration) =>
+                {
+                    configuration.WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day);
+                })
+                .ConfigureServices((context, services) =>
+                {
+                    services.AddSingleton<IShortageRepository>(sp => new JsonShortageRepository("shortages.json"));
+                    services.AddSingleton<IShortageService, ShortageService>();
+                })
+                .Build();
+
+
             Console.Write("Enter your name: ");
             var username = Console.ReadLine()?.Trim();
 
@@ -31,16 +46,11 @@ namespace VismaTask1
             }
             bool isAdmin = username.Equals("admin", StringComparison.OrdinalIgnoreCase);
 
-            Log.Logger = new LoggerConfiguration().WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day).CreateLogger();
-
-            var repo = new JsonShortageRepository("shortages.json");
-            var service = new ShortageService(repo);
+            var service = host.Services.GetRequiredService<IShortageService>();
 
             // Setting up the root command
             var root = new RootCommand("Visma Resource Shortage CLI");
-            var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(dispose: true));
-            var logger = loggerFactory.CreateLogger<Program>();
-
+            var logger = host.Services.GetRequiredService<ILogger<Program>>();
             #region register Command
 
             var registerCmd = new Command("register", "Register a new application")
