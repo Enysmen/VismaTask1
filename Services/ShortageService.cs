@@ -131,12 +131,12 @@ namespace VismaTask1.Services
 
                 if (from.HasValue)
                 {
-                    query = query.Where(s => s.CreatedOn >= from.Value);
+                    query = query.Where(s => s.CreatedOn.Date >= from.Value.Date);
                 }
 
                 if (to.HasValue)
                 {
-                    query = query.Where(s => s.CreatedOn <= to.Value);
+                    query = query.Where(s => s.CreatedOn.Date <= to.Value.Date);
                 }
 
                 if (category.HasValue)
