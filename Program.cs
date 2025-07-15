@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualBasic;
-
+using VismaTask1.Commands;
 using Serilog;
 
 using VismaTask1.Models;
@@ -57,25 +57,11 @@ namespace VismaTask1
             var logger = host.Services.GetRequiredService<ILogger<Program>>();
             #region register Command
 
-            var registerCmd = new Command("register", "Register a new application")
-            {
-                new Option<string>("--title")
-                {
-                    Description = "Application title",
-                    IsRequired  = true
-                },
-                new Option<Room>("--room")
-                {
-                    Description = "Room",
-                    IsRequired  = true
-                },
-                new Option<Category>("--category")
-                {
-                    Description = "Category",
-                    IsRequired  = true
-                },
-                CreatePriorityOption()
-            };
+            var registerCmd = new RegisterCommand(
+                    host.Services.GetRequiredService<IShortageService>(),
+                    host.Services.GetRequiredService<ILogger<RegisterCommand>>(),
+                    username,
+                    isAdmin);
 
             registerCmd.Handler = CommandHandler.Create<string, Room, Category, int>((title, room, category, priority) =>
             {
@@ -279,25 +265,6 @@ namespace VismaTask1
             }
         }
 
-        private static Option<int> CreatePriorityOption()
-        {
-            var priorityOption = new Option<int>("--priority")
-            {
-                Description = "Priority (1-10)",
-                IsRequired = true
-            };
-
-            priorityOption.AddValidator(result =>
-            {
-                var value = result.GetValueOrDefault<int>();
-                if (value < 1 || value > 10)
-                {
-                    result.ErrorMessage = "The priority must be in the range from 1 to 10.";
-                }
-            });
-
-            return priorityOption;
-        }
     }
 }
 
