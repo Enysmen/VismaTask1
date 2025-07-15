@@ -20,7 +20,7 @@ namespace VismaTask1.Commands
         public ListCommand(IShortageService service,ILogger<ListCommand> logger,string username,bool isAdmin)
         :base("list", "Show applications", service, logger, username, isAdmin)
         {
-            foreach (var opt in CommandOptionsFactory.CreateListOptions())
+            foreach (var opt in FactoryOptionsCommand.CreateListOptions())
             {
                 AddOption(opt);
             }

@@ -20,7 +20,7 @@ namespace VismaTask1.Commands
         public RegisterCommand(IShortageService service, ILogger<RegisterCommand> logger, string username, bool isAdmin)
         : base("register", "Register a new application", service, logger, username, isAdmin)
         {
-            foreach (var opt in CommandOptionsFactory.CreateRegisterOptions())
+            foreach (var opt in FactoryOptionsCommand.CreateRegisterOptions())
             {
                 AddOption(opt);
             }

@@ -18,7 +18,7 @@ namespace VismaTask1.Commands
         public DeleteCommand(IShortageService service,ILogger<DeleteCommand> logger,string username,bool isAdmin)
         :base("delete", "Delete a request", service, logger, username, isAdmin)
         {
-            foreach (var opt in CommandOptionsFactory.CreateDeleteOptions())
+            foreach (var opt in FactoryOptionsCommand.CreateDeleteOptions())
             {
                 AddOption(opt);
             }
