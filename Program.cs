@@ -6,6 +6,7 @@ using System.CommandLine.Parsing;
 using System.Globalization;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic;
 
 using Serilog;
 
@@ -20,50 +21,48 @@ namespace VismaTask1
     {
         static int Main(string[] args)
         {
-            // Ввод имени и определение роли
-            Console.Write("Введите ваше имя: ");
+            Console.Write("Enter your name: ");
             var username = Console.ReadLine()?.Trim();
+
             if (string.IsNullOrWhiteSpace(username))
             {
-                Console.WriteLine("Имя пользователя не может быть пустым.");
+                Console.WriteLine("Username cannot be empty.");
                 return 1;
             }
             bool isAdmin = username.Equals("admin", StringComparison.OrdinalIgnoreCase);
 
-            // Репозиторий и сервис
-            var repo = new JsonShortageRepository("shortages.json");
-            var service = new ShortageService(repo);
             Log.Logger = new LoggerConfiguration().WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day).CreateLogger();
 
-            // Настройка корневой команды
+            var repo = new JsonShortageRepository("shortages.json");
+            var service = new ShortageService(repo);
+
+            // Setting up the root command
             var root = new RootCommand("Visma Resource Shortage CLI");
             var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(dispose: true));
             var logger = loggerFactory.CreateLogger<Program>();
 
-            // --- register
-            var registerCmd = new Command("register", "Зарегистрировать новую заявку")
+            #region register Command
+
+            var registerCmd = new Command("register", "Register a new application")
             {
                 new Option<string>("--title")
                 {
-                    Description = "Заголовок заявки",
+                    Description = "Application title",
                     IsRequired  = true
                 },
                 new Option<Room>("--room")
                 {
-                    Description = "Комната",
+                    Description = "Room",
                     IsRequired  = true
                 },
                 new Option<Category>("--category")
                 {
-                    Description = "Категория",
+                    Description = "Category",
                     IsRequired  = true
                 },
-                new Option<int>("--priority")
-                {
-                    Description = "Приоритет (1-10)",
-                    IsRequired  = true
-                }
+                CreatePriorityOption()
             };
+
             registerCmd.Handler = CommandHandler.Create<string, Room, Category, int>((title, room, category, priority) =>
             {
                 try
@@ -78,25 +77,24 @@ namespace VismaTask1
                         CreatedOn = DateTime.UtcNow
                     };
                     service.Register(s, username);
-                    Console.WriteLine("OK: заявка зарегистрирована");
+                    Console.WriteLine("OK: application registered");
                 }
                 catch (InvalidOperationException ex)
                 {
-                    // Пользователю — понятный текст
-                    Console.WriteLine($"Внимание: {ex.Message}");
-                    // Логируем полный стек
-                    Log.Error(ex, "При попытке зарегистрировать заявку Title={Title}, Room={Room}", title, room);
+                    Console.WriteLine($"Attention: {ex.Message}");
+                    Log.Error(ex, "When trying to register an application Title={Title}, Room={Room}", title, room);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Произошла непредвиденная ошибка при регистрации.");
-                    Log.Error(ex, "Непредвиденная ошибка в registerCmd.Handler");
+                    Console.WriteLine("An unexpected error occurred while registering.");
+                    Log.Error(ex, "Unexpected error in register Cmd.Handler");
                 }
             });
             root.AddCommand(registerCmd);
+            #endregion
 
-            // --- list
-            // Опции --from и --to вынесены для корректного позиционного parseArgument
+            #region ---list Command
+            // Options --from and --to moved to correct positional parseArgument
             var fromOpt = new Option<DateTime?>(
                 aliases: new[] { "--from" },
                 parseArgument: result =>
@@ -104,30 +102,25 @@ namespace VismaTask1
                     var token = result.Tokens.SingleOrDefault()?.Value;
                     try
                     {
-                        if (DateTime.TryParseExact(token ?? string.Empty, "yyyy-MM-dd",CultureInfo.InvariantCulture, DateTimeStyles.None,out var d))
+                        if (DateTime.TryParseExact(token ?? string.Empty, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
                         {
                             return d;
                         }
                         else
                         {
-                            throw new ArgumentException($"Некорректный формат даты: «{token}». Ожидается yyyy-MM-dd.");
+                            throw new ArgumentException($"Incorrect date format: «{token}». Expected yyyy-MM-dd.");
                         }
                     }
                     catch (Exception ex)
                     {
-                        // Логируем полную трассировку
-                        Log.Error(ex, "Ошибка при разборе параметра --from: {RawValue}", token);
-
-                        // Пользователю — короткое сообщение
-                        Console.WriteLine("Ошибка: формат даты для параметра --from должен быть yyyy-MM-dd.");
-
-                        // Возвращаем null, чтобы фильтра не применялось
+                        Log.Error(ex, "Error parsing parameter --from: {RawValue}", token);
+                        Console.WriteLine("Error: Date format for --from parameter must be yyyy-MM-dd.");
                         return null;
                     }
                 })
-                 {
-                    Description = "Дата от (yyyy-MM-dd)"
-                 };
+            {
+                Description = "Date from (yyyy-MM-dd)"
+            };
 
 
 
@@ -138,46 +131,41 @@ namespace VismaTask1
                     var token = result.Tokens.SingleOrDefault()?.Value;
                     try
                     {
-                        if (DateTime.TryParseExact(token ?? string.Empty, "yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None, out var d))
+                        if (DateTime.TryParseExact(token ?? string.Empty, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
                         {
                             return d;
                         }
                         else
                         {
-                            throw new ArgumentException($"Некорректный формат даты: «{token}». Ожидается yyyy-MM-dd.");
+                            throw new ArgumentException($"Incorrect date format: «{token}». Expected yyyy-MM-dd.");
                         }
                     }
                     catch (Exception ex)
                     {
-                        // Логируем подробности в файл
-                        Log.Error(ex, "Ошибка при разборе параметра --to: {RawValue}", token);
-
-                        // Выводим пользователю понятное сообщение
-                        Console.WriteLine("Ошибка: формат даты для параметра --to должен быть yyyy-MM-dd.");
-
-                        // Возвращаем null, чтобы фильтр не применился
+                        Log.Error(ex, "Error parsing parameter --to: {RawValue}", token);
+                        Console.WriteLine("Error: Date format for --to option must be yyyy-MM-dd.");
                         return null;
                     }
                 })
-                 {
-                    Description = "Дата до (yyyy-MM-dd)"
-                 };
+            {
+                Description = "Date to (yyyy-MM-dd)"
+            };
 
-            var listCmd = new Command("list", "Показать заявки")
+            var listCmd = new Command("list", "Show applications")
             {
                 new Option<string?>("--title")
                 {
-                    Description = "Фильтр по заголовку"
+                    Description = "Filter by title"
                 },
                 fromOpt,
                 toOpt,
                 new Option<Category?>("--category")
                 {
-                    Description = "Фильтр по категории"
+                    Description = "Filter by category"
                 },
                 new Option<Room?>("--room")
                 {
-                    Description = "Фильтр по комнате"
+                    Description = "Filter by room"
                 }
             };
             listCmd.Handler = CommandHandler.Create<string?, DateTime?, DateTime?, Category?, Room?>(
@@ -187,7 +175,7 @@ namespace VismaTask1
                     var list = service.Filter(all, title, from, to, category, room);
                     if (!list.Any())
                     {
-                        Console.WriteLine("Ничего не найдено.");
+                        Console.WriteLine("Nothing found.");
                         return;
                     }
                     foreach (var x in list)
@@ -198,49 +186,77 @@ namespace VismaTask1
                     }
                 });
             root.AddCommand(listCmd);
+            #endregion
 
-            // --- delete
-            var deleteCmd = new Command("delete", "Удалить заявку")
+            #region delete Command
+            var deleteCmd = new Command("delete", "Delete request")
             {
                 new Option<string>("--title")
                 {
-                    Description = "Заголовок заявки",
+                    Description = "Application title",
                     IsRequired  = true
                 },
                 new Option<Room>("--room")
                 {
-                    Description = "Комната",
+                    Description = "Room",
                     IsRequired  = true
                 }
             };
             deleteCmd.Handler = CommandHandler.Create<string, Room>((title, room) =>
             {
                 service.Delete(title, room, username, isAdmin);
-                Console.WriteLine("OK: заявка удалена");
+                Console.WriteLine("OK: request deleted");
             });
             root.AddCommand(deleteCmd);
+            #endregion
+
 
             // --- exit
-            var exitCmd = new Command("exit", "Выход из приложения");
+            var exitCmd = new Command("exit", "Exit the application");
             exitCmd.Handler = CommandHandler.Create(() => Environment.Exit(0));
             root.AddCommand(exitCmd);
 
-            // Если есть аргументы — выполнить один раз и выйти
+            // If there are arguments, execute once and exit
             if (args.Length > 0)
+            {
                 return root.InvokeAsync(args).Result;
-
-            // Иначе — интерактивный REPL
-            Console.WriteLine("Visma CLI: введите --help для списка команд, exit — для выхода.");
+            }
+                
+            // Otherwise - interactive REPL
+            Console.WriteLine("Visma CLI: Type --help for a list of commands, exit to exit.");
             while (true)
             {
                 Console.Write("> ");
                 var line = Console.ReadLine();
+
                 if (string.IsNullOrWhiteSpace(line))
+                {
                     continue;
+                }
 
                 var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 _ = root.Invoke(parts);
             }
+        }
+
+        private static Option<int> CreatePriorityOption()
+        {
+            var priorityOption = new Option<int>("--priority")
+            {
+                Description = "Priority (1-10)",
+                IsRequired = true
+            };
+
+            priorityOption.AddValidator(result =>
+            {
+                var value = result.GetValueOrDefault<int>();
+                if (value < 1 || value > 10)
+                {
+                    result.ErrorMessage = "The priority must be in the range from 1 to 10.";
+                }
+            });
+
+            return priorityOption;
         }
     }
 }

@@ -11,10 +11,10 @@ namespace VismaTask1.Repositories
     // Interface for the data storage layer
     public interface IShortageRepository
     {
-        // Loads all requests from storage
+        
         List<Shortage> LoadAll();
 
-        // Saves the full list of requests to storage
+        
         void SaveAll(List<Shortage> items);
     }
 }
