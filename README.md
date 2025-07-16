@@ -1,1 +1,3 @@
-# VismaTask1
+VismaTask1
+
+Console application for managing resource shortage requests
