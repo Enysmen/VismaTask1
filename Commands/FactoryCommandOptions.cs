@@ -10,7 +10,7 @@ using VismaTask1.Models;
 
 namespace VismaTask1.Commands
 {
-    internal static class FactoryOptionsCommand
+    public static class FactoryOptionsCommand
     {
         public static IEnumerable<Option> CreateRegisterOptions()
         {
