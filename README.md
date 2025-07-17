@@ -41,10 +41,8 @@ No database is used.
    ```
 4. Run the application:
    ```bash
-   dotnet run -- [command] [options]
+   dotnet run 
    ```
-
-**Note**: You can run the application in two ways: through the terminal with commands or by running the executable file and entering commands there.
 
 ---
 
