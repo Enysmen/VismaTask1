@@ -118,7 +118,7 @@ No database is used.
 
 ## 🧪 Unit Tests
 
-Unit tests are implemented in a separate repository: [VismaTask1.xUTest](https://github.com/Enysmen/VismaTask1.xUTest).
+Unit tests are implemented in a separate repository: [TestVismaTask1]([https://github.com/Enysmen/TestVismaTask1.git]).
 
 ---
 
